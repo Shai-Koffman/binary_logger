@@ -3,6 +3,14 @@ name = "binary_logger"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "binary_logger"
+path = "src/lib.rs"
+
+[[bin]]
+name = "binary_logger"
+path = "src/main.rs"
+
 [dependencies]
 lazy_static = "1.4"
 log = "0.4"
@@ -10,3 +18,11 @@ log4rs = "1.2"
 lz4_flex = "0.11"
 parking_lot = "0.12.3"
 tempfile = "3.17.1"
+
+[dev-dependencies]
+criterion = "0.5"
+parking_lot = "0.12"
+
+[[bench]]
+name = "perf_tests"
+harness = false

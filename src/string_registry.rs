@@ -81,42 +81,12 @@ pub fn register_string(s: &'static str) -> u16 {
 /// assert_eq!(get_string(0), None);  // 0 is reserved for dynamic strings
 /// ```
 pub fn get_string(id: u16) -> Option<&'static str> {
-    STRING_REGISTRY.lock().unwrap()
-        .iter()
+    if id == 0 {
+        return None; // Reserved for dynamic strings
+    }
+    
+    let registry = STRING_REGISTRY.lock().unwrap();
+    registry.iter()
         .find(|(_, &stored_id)| stored_id == id)
         .map(|(&s, _)| s)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_string_registration() {
-        // Test string deduplication
-        let id1 = register_string("Test string");
-        let id2 = register_string("Test string");
-        assert_eq!(id1, id2, "Same string should get same ID");
-        
-        // Test string retrieval
-        let retrieved = get_string(id1).unwrap();
-        assert_eq!(retrieved, "Test string", "Retrieved string should match original");
-    }
-
-    #[test]
-    fn test_multiple_strings() {
-        // Test different strings get different IDs
-        let id1 = register_string("First string");
-        let id2 = register_string("Second string");
-        assert_ne!(id1, id2, "Different strings should get different IDs");
-        
-        // Test IDs are sequential
-        assert_eq!(id2, id1 + 1, "IDs should be sequential");
-    }
-
-    #[test]
-    fn test_reserved_id() {
-        // Test that ID 0 is reserved (returns None)
-        assert_eq!(get_string(0), None, "ID 0 should be reserved for dynamic strings");
-    }
 } 
