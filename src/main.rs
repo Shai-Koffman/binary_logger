@@ -1,55 +1,42 @@
-#![feature(adt_const_params)]
 #![feature(generic_const_exprs)]
 
-mod efficient_clock;
+use std::io;
+
 mod binary_logger;
-mod loggable;
-mod log_format_registry;
+mod string_registry;
 mod log_reader;
+mod efficient_clock;
 
-use binary_logger::{Logger, DumpCallback};
-use loggable::Loggable;
-use log_reader::LogReader;
-use std::sync::Mutex;
-use std::time::Duration;
-use lazy_static::lazy_static;
-use std::sync::Arc;
+use crate::binary_logger::Logger;
 
-lazy_static! {
-    static ref LAST_DUMP: Mutex<Vec<u8>> = Mutex::new(Vec::new());
-}
+/// Buffer size for the binary logger (16KB)
+const BUFFER_SIZE: usize = 16 * 1024;
 
-fn main() {
-    // Example dump callback: stores the buffer for later reading
-    let dump_cb = Arc::new(|buf: &[u8]| {
-        let mut last_dump = LAST_DUMP.lock().unwrap();
-        last_dump.extend_from_slice(buf);
-        
-        // Also print the raw hex dump for debugging
-        println!("Dumped buffer with {} bytes", buf.len());
-        println!("Raw data: {:02x?}", buf);
-    });
+/// Example application demonstrating the binary logger usage.
+/// Creates a logger, writes various types of log records, and ensures proper cleanup.
+fn main() -> io::Result<()> {
+    // Create a new logger with 16KB buffer
+    let mut logger = Logger::<BUFFER_SIZE>::new("app.log")?;
 
-    let mut logger = Logger::<256>::new(Some(dump_cb));
+    // Example 1: Simple numeric value
+    log_record!(logger, "Processing value {}", 42)?;
 
-    // Log some events with standard Rust format syntax
-    log_record!(logger, "Action: {} at time={}", "Started application", 100i32);
-    log_record!(logger, "User {} logged in", "alice");
-    log_record!(logger, "Measurement: value={} units={}", 3_141_592u64, 42u32);
-    std::thread::sleep(Duration::from_millis(50));
-    log_record!(logger, "Event occurred: {}", "User 'bob' logged out with a very long message that demonstrates variable-sized strings");
+    // Example 2: Multiple parameters of different types
+    log_record!(logger, "User {} logged in from {} with role {}", 
+        "john_doe", 
+        "192.168.1.1",
+        "admin"
+    )?;
 
-    logger.flush();
+    // Example 3: Complex data structure
+    let metrics = format!(
+        "CPU: {}%, Memory: {}GB, Network: {}Mbps",
+        95, 32, 1000
+    );
+    log_record!(logger, "System metrics: {}", metrics)?;
 
-    // Now read back and decode the logs
-    println!("\nDecoded log entries:");
-    println!("-------------------");
+    // Ensure all records are written to disk
+    logger.flush()?;
     
-    let dump = LAST_DUMP.lock().unwrap();
-    let mut reader = LogReader::new(&dump);
-    
-    while let Some(entry) = reader.read_entry() {
-        println!("At {:?}:", entry.timestamp);
-        println!("  {}", entry.format());
-    }
+    Ok(())
 }
