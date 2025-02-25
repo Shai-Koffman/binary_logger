@@ -1,4 +1,4 @@
-#[allow(dead_code)]
+#![allow(unused)]
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::fmt;
@@ -7,6 +7,7 @@ use crate::string_registry::get_string;
 
 /// Represents a value extracted from a log entry.
 #[derive(Debug, Clone)]
+#[allow(unused)]
 pub enum LogValue {
     Integer(i32),
     Boolean(bool),
@@ -30,6 +31,7 @@ impl fmt::Display for LogValue {
 /// A single log entry read from the binary log file.
 /// Contains the timestamp, format string, and parameter values.
 #[derive(Debug)]
+#[allow(unused)]
 pub struct LogEntry {
     /// When the log entry was written (UNIX timestamp)
     pub timestamp: SystemTime,
@@ -46,6 +48,7 @@ pub struct LogEntry {
 impl LogEntry {
     /// Formats the log entry using the format string and parameters.
     /// If the format string is not available, returns a debug representation.
+    #[allow(unused)]
     pub fn format(&self) -> String {
         if let Some(fmt_str) = self.format_string {
             // Simple formatting implementation
@@ -79,6 +82,7 @@ impl LogEntry {
     }
 
     /// Returns a detailed representation of the log entry for debugging purposes
+    #[allow(unused)]
     pub fn to_detailed_string(&self) -> String {
         let mut result = String::new();
         
@@ -136,6 +140,7 @@ impl LogEntry {
 /// - Sequential read performance: O(n) where n is file size
 /// - Memory usage: O(1) - reads records one at a time
 /// - Timestamp compression: Uses relative timestamps between full timestamps
+#[allow(unused)]
 pub struct LogReader<'a> {
     data: &'a [u8],
     pos: usize,
@@ -148,6 +153,7 @@ impl<'a> LogReader<'a> {
     /// 
     /// # Arguments
     /// * `data` - The raw bytes of the binary log file
+    #[allow(unused)]
     pub fn new(data: &'a [u8]) -> Self {
         // Skip the buffer header (8 bytes) if present
         let pos = if data.len() >= 8 { 8 } else { 0 };
@@ -164,6 +170,7 @@ impl<'a> LogReader<'a> {
     /// 
     /// # Returns
     /// Some(u16) if there are enough bytes remaining, None otherwise
+    #[allow(unused)]
     fn read_u16(&mut self) -> Option<u16> {
         if self.pos + 2 <= self.data.len() {
             let value = u16::from_le_bytes([self.data[self.pos], self.data[self.pos + 1]]);
@@ -178,7 +185,7 @@ impl<'a> LogReader<'a> {
     /// 
     /// # Returns
     /// Some(u64) if there are enough bytes remaining, None otherwise
-    #[allow(dead_code)]
+    #[allow(unused)]
     fn read_u64(&mut self) -> Option<u64> {
         if self.pos + 8 <= self.data.len() {
             let mut bytes = [0u8; 8];
@@ -197,6 +204,7 @@ impl<'a> LogReader<'a> {
     /// 
     /// # Returns
     /// Some(&[u8]) if there are enough bytes remaining, None otherwise
+    #[allow(unused)]
     fn read_bytes(&mut self, len: usize) -> Option<&'a [u8]> {
         if self.pos + len <= self.data.len() {
             let slice = &self.data[self.pos..self.pos + len];
@@ -214,6 +222,7 @@ impl<'a> LogReader<'a> {
     /// 
     /// # Returns
     /// A vector of extracted LogValue parameters
+    #[allow(unused)]
     fn extract_parameters(&self, payload: &[u8]) -> Vec<LogValue> {
         let mut parameters = Vec::new();
         
@@ -329,6 +338,7 @@ impl<'a> LogReader<'a> {
     /// Handles two record types:
     /// 1. Full timestamp (type=1): Updates base timestamp
     /// 2. Normal record (type=0): Contains log entry data
+    #[allow(unused)]
     pub fn read_entry(&mut self) -> Option<LogEntry> {
         if self.pos >= self.data.len() {
             return None;

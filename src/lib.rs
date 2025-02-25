@@ -8,4 +8,4 @@ pub mod efficient_clock;
 
 pub use binary_logger::{Logger, BufferHandler};
 pub use string_registry::{register_string, get_string};
-pub use log_reader::{LogReader, LogEntry, LogValue}; 
+pub use log_reader::{LogReader, LogValue, LogEntry}; 

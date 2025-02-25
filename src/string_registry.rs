@@ -1,5 +1,3 @@
-#[allow(dead_code)]
-
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Mutex;
@@ -42,6 +40,7 @@ lazy_static! {
 /// 
 /// # Thread Safety
 /// This function is thread-safe and can be called concurrently.
+#[allow(dead_code)]
 pub fn register_string(s: &'static str) -> u16 {
     // Fast path: check if string is already registered
     let mut registry = STRING_REGISTRY.lock().unwrap();

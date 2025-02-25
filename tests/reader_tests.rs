@@ -1,4 +1,4 @@
-use binary_logger::{LogReader, LogEntry, LogValue, register_string};
+use binary_logger::{LogReader, register_string};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
