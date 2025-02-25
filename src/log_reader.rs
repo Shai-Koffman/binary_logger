@@ -1,3 +1,5 @@
+#[allow(dead_code)]
+
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::fmt;
 use std::cmp::min;
@@ -176,6 +178,7 @@ impl<'a> LogReader<'a> {
     /// 
     /// # Returns
     /// Some(u64) if there are enough bytes remaining, None otherwise
+    #[allow(dead_code)]
     fn read_u64(&mut self) -> Option<u64> {
         if self.pos + 8 <= self.data.len() {
             let mut bytes = [0u8; 8];

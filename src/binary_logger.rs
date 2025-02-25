@@ -27,22 +27,6 @@ use crate::efficient_clock::TimestampConverter;
 /// - Write throughput: ~2.5 million messages/second
 /// - Memory usage: Fixed buffer size (CAP)
 /// - CPU efficient: Uses hardware timestamps
-/// 
-/// # Example Usage
-/// ```rust
-/// use binary_logger::{Logger, BufferHandler};
-/// 
-/// struct FileHandler { /* ... */ }
-/// impl BufferHandler for FileHandler {
-///     fn handle_switched_out_buffer(&self, buffer: *const u8, size: usize) {
-///         // Handle the filled buffer (e.g., write to file)
-///     }
-/// }
-/// 
-/// let handler = FileHandler::new("app.log")?;
-/// let mut logger = Logger::<1024>::new(handler);
-/// log_record!(logger, "Processing item {} with status {}", item_id, status)?;
-/// ```
 
 pub trait BufferHandler: UnwindSafe {
     fn handle_switched_out_buffer(&self, buffer: *const u8, size: usize);
@@ -63,12 +47,6 @@ impl<const CAP: usize> Logger<CAP> {
     /// 
     /// # Arguments
     /// * `handler` - Implementation of BufferHandler that processes filled buffers
-    /// 
-    /// # Example
-    /// ```rust
-    /// let handler = MyHandler::new();
-    /// let mut logger = Logger::<1024>::new(handler);
-    /// ```
     pub fn new(handler: impl BufferHandler + 'static) -> Self {
         // Allocate aligned buffers
         let buffer1 = unsafe { 

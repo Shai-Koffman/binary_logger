@@ -4,12 +4,12 @@ A zero-allocation, high-throughput binary logging system written in Rust, optimi
 
 ## Features
 
-- **Ultra-Fast Timestamps**: Uses CPU hardware timestamps (`rdtsc`) for minimal overhead
+- **Ultra-Fast Timestamps**: Uses CPU hardware timestamps  for minimal overhead
 - **Compact Binary Format**: Efficient binary encoding with relative timestamps
 - **String Deduplication**: Automatic string interning for repeated messages
+- **Single-Thread Optimized**: Lock-free, designed for maximum throughput
 - **LZ4 Compression**: Fast compression with excellent ratios
 - **Zero-Copy Design**: Minimizes allocations and copies
-- **Single-Thread Optimized**: Lock-free, designed for maximum throughput
 
 ## Performance
 

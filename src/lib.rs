@@ -1,4 +1,5 @@
 #![feature(generic_const_exprs)]
+#![allow(incomplete_features)]
 
 pub mod binary_logger;
 pub mod string_registry;
