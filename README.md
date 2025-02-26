@@ -6,6 +6,7 @@ A zero-allocation, high-performance binary logging system written in Rust, optim
 
 - **Ultra-Fast Logging**: ~50x faster than traditional text-based loggers
 - **Compact Storage**: ~100x smaller log files compared to text logs
+- **Massive Throughput**: **~36 million logs per second** on standard hardware
 - **Zero-Allocation Path**: Critical logging path has no memory allocations
 - **Per-Thread Design**: One logger per thread for maximum performance
 - **Separation of Concerns**: Logger handles memory operations, handler deals with I/O
