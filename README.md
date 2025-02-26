@@ -178,6 +178,7 @@ Our benchmarks (running approximately 65,000 log operations) show:
 |--------|--------------|--------------------------|-------------|
 | Speed | ~1.8ms | ~96ms | **~50x faster** |
 | File Size | 0.31 MB | 31.9 MB | **~100x smaller** |
+| Throughput | **~36.4 million logs/second** | ~0.7 million logs/second | **~50x higher** |
 
 ### Performance Scaling
 - **Linear scaling** with number of messages
