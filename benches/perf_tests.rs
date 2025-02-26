@@ -2,28 +2,20 @@
 use binary_logger::{Logger, log_record, BufferHandler};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
-use std::sync::{Arc, Mutex, Once};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use log::{info, LevelFilter};
-use log4rs::{
-    append::rolling_file::{RollingFileAppender, policy::compound::CompoundPolicy,
-        policy::compound::trigger::size::SizeTrigger,
-        policy::compound::roll::fixed_window::FixedWindowRoller},
-    config::{Appender, Config, Root},
-    encode::pattern::PatternEncoder,
-};
+use tracing::{info, Level};
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::{fmt, EnvFilter};
+use tracing_appender::non_blocking::WorkerGuard;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 use lz4::EncoderBuilder;
 
 const BUFFER_SIZE: usize = 4 * 1024 * 1024; // 4MB buffer
 const NUM_BUFFER_FILLS: usize = 4; // Fill buffer 4 times
-// Calculate iterations to fill buffer 4 times (approximate based on typical record size)
 const RECORD_SIZE_ESTIMATE: usize = 256; // Estimated bytes per record
 const ITERATIONS: usize = (BUFFER_SIZE * NUM_BUFFER_FILLS) / RECORD_SIZE_ESTIMATE;
-
-static LOGGER_INIT: Once = Once::new();
-static mut LOG4RS_HANDLE: Option<log4rs::Handle> = None;
 
 #[derive(Debug)]
 struct TestEvent {
@@ -57,7 +49,6 @@ impl FileBufferHandler {
                 .open(&file_path)
                 .unwrap();
                 
-            // Create LZ4 encoder with high compression level
             let mut encoder = EncoderBuilder::new()
                 .level(4)
                 .build(file)
@@ -68,7 +59,6 @@ impl FileBufferHandler {
                 let _ = encoder.flush();
             }
             
-            // Finish the encoder when the channel is closed
             let _ = encoder.finish().1;
         });
 
@@ -78,7 +68,6 @@ impl FileBufferHandler {
 
 impl BufferHandler for FileBufferHandler {
     fn handle_switched_out_buffer(&self, buffer: *const u8, size: usize) {
-        // Safely copy the buffer to a new Vec
         let buffer_copy = unsafe {
             let slice = std::slice::from_raw_parts(buffer, size);
             slice.to_vec()
@@ -88,7 +77,6 @@ impl BufferHandler for FileBufferHandler {
 }
 
 fn cleanup_files() {
-    // Clean up ALL log files before starting
     for entry in fs::read_dir(".").unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
@@ -99,29 +87,28 @@ fn cleanup_files() {
     }
 }
 
-fn setup_log4rs() -> log4rs::Config {
-    // Set up the rolling policy (4MB per file, keep 5 files)
-    let trigger = Box::new(SizeTrigger::new(4 * 1024 * 1024));
-    let roller = Box::new(
-        FixedWindowRoller::builder()
-            .build("traditional.{}.log", 5)
-            .unwrap()
-    );
-    let policy = Box::new(CompoundPolicy::new(trigger, roller));
-
-    // Create rolling file appender
-    let file_appender = RollingFileAppender::builder()
-        .encoder(Box::new(PatternEncoder::new("{m}{n}")))
-        .build("traditional.log", policy)
+fn setup_tracing() -> (impl tracing::Subscriber + Send + Sync, WorkerGuard) {
+    let file_appender = tracing_appender::rolling::RollingFileAppender::builder()
+        .rotation(tracing_appender::rolling::Rotation::NEVER)
+        .filename_prefix("traditional")
+        .filename_suffix("log")
+        .build(".")
         .unwrap();
+    
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+    
+    let subscriber = tracing_subscriber::registry()
+        .with(fmt::layer()
+            .with_writer(non_blocking)
+            .with_target(false)
+            .with_thread_ids(true)
+            .with_line_number(true)
+            .with_file(true)
+            .with_level(true)
+            .with_thread_names(true))
+        .with(EnvFilter::from_default_env().add_directive(Level::INFO.into()));
 
-    // Build and return the config
-    Config::builder()
-        .appender(Appender::builder().build("file", Box::new(file_appender)))
-        .build(Root::builder()
-            .appender("file")
-            .build(LevelFilter::Info))
-        .unwrap()
+    (subscriber, guard)
 }
 
 fn calculate_statistics(times: &[f64]) -> (f64, f64, f64, f64) {
@@ -136,26 +123,26 @@ fn calculate_statistics(times: &[f64]) -> (f64, f64, f64, f64) {
 }
 
 fn main() {
-    // Initialize logger once at the start
-    let config = setup_log4rs();
-    let handle = log4rs::init_config(config).unwrap();
+    // Check if we should do a single iteration
+    let single_iteration = std::env::var("SINGLE_ITERATION").is_ok();
+    let num_runs = if single_iteration { 1 } else { 10 };
 
-    const NUM_RUNS: usize = 10;
-    let mut binary_times = Vec::with_capacity(NUM_RUNS);
-    let mut traditional_times = Vec::with_capacity(NUM_RUNS);
+    let mut binary_times = Vec::with_capacity(num_runs);
+    let mut traditional_times = Vec::with_capacity(num_runs);
 
-    println!("\nRunning {} iterations of performance comparison:", NUM_RUNS);
+    println!("\nRunning {} iterations of performance comparison:", num_runs);
     println!("({} iterations per run, {} buffer fills of {} MB)\n", 
              ITERATIONS, NUM_BUFFER_FILLS, BUFFER_SIZE as f64 / (1024.0 * 1024.0));
 
-    for run in 1..=NUM_RUNS {
+    for run in 1..=num_runs {
         println!("Run {}:", run);
         
         // Clean up ALL files before starting
         cleanup_files();
         
-        // Reconfigure logger with fresh config
-        handle.set_config(setup_log4rs());
+        // Initialize tracing for this run
+        let (subscriber, _guard) = setup_tracing();
+        let _scope = tracing::subscriber::set_default(subscriber);
         
         // Fixed test data with more complexity
         let event = TestEvent {
@@ -176,17 +163,21 @@ fn main() {
         for i in 0..ITERATIONS {
             log_record!(logger, "Test perf: iteration={}, event={}", i, event).unwrap();
         }
+        let binary_duration = binary_start.elapsed();
         logger.flush();
         drop(logger); // Ensure logger is dropped and flushed
-        let binary_duration = binary_start.elapsed();
         binary_times.push(binary_duration.as_secs_f64() * 1000.0); // Convert to ms
 
         let traditional_start = Instant::now();
         for i in 0..ITERATIONS {
-            info!("Test perf: iteration={}, event={}", i, event);
+            info!(
+                iteration = i,
+                event = %event,
+                "Test perf"
+            );
         }
-        // Force flush by reconfiguring the logger
-        handle.set_config(setup_log4rs());
+        drop(_scope); // Drop the subscriber scope first
+        drop(_guard); // Then drop the guard to ensure flushing
         let traditional_duration = traditional_start.elapsed();
         traditional_times.push(traditional_duration.as_secs_f64() * 1000.0); // Convert to ms
 
@@ -210,7 +201,7 @@ fn main() {
             let entry = entry.unwrap();
             let path = entry.path();
             let path_str = path.to_string_lossy();
-            if path_str.contains("traditional.") {
+            if path_str.contains("traditional") {
                 total_traditional_size += fs::metadata(path).map(|m| m.len()).unwrap_or(0);
             }
         }
@@ -243,7 +234,4 @@ fn main() {
 
     println!("\nAverage speedup: {:.1}x", trad_mean / binary_mean);
     println!("Speedup range: {:.1}x to {:.1}x", trad_min / binary_max, trad_max / binary_min);
-}
-
-// Remove criterion-related code
-// ... existing code ... 
+} 
