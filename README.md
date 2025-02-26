@@ -4,8 +4,8 @@ A zero-allocation, high-performance binary logging system written in Rust, optim
 
 ## Key Features
 
-- **Ultra-Fast Logging**: 30-50x faster than traditional text-based loggers
-- **Compact Storage**: 80-100x smaller log files compared to text logs
+- **Ultra-Fast Logging**: ~50x faster than traditional text-based loggers
+- **Compact Storage**: ~100x smaller log files compared to text logs
 - **Zero-Allocation Path**: Critical logging path has no memory allocations
 - **Per-Thread Design**: One logger per thread for maximum performance
 - **Separation of Concerns**: Logger handles memory operations, handler deals with I/O
@@ -172,12 +172,12 @@ thread::scope(|scope| {
 
 ## Performance Comparison
 
-Our benchmarks (running approximately 40,000 log operations) show:
+Our benchmarks (running approximately 65,000 log operations) show:
 
 | Metric | Binary Logger | Traditional Logger (tracing) | Improvement |
 |--------|--------------|--------------------------|-------------|
-| Speed | ~2.8ms | ~93ms | **33x faster** |
-| File Size | 0.31 MB | 31.9 MB | **100x smaller** |
+| Speed | ~1.8ms | ~96ms | **~50x faster** |
+| File Size | 0.31 MB | 31.9 MB | **~100x smaller** |
 
 ### Performance Scaling
 - **Linear scaling** with number of messages

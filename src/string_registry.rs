@@ -1,20 +1,20 @@
+//! String deduplication registry for efficient binary logging.
+//!
+//! This module provides functionality to deduplicate strings in the binary
+//! logging system, mapping them to compact numeric IDs that require much less
+//! storage space. Unlike the Logger itself, the string registry is thread-safe
+//! and can be safely accessed from multiple threads simultaneously.
+//!
+//! # Thread Safety
+//!
+//! While each thread should have its own Logger instance, all threads share the
+//! same string registry. The registry uses a mutex and atomic operations to ensure
+//! thread-safety.
+
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Mutex;
 use lazy_static::lazy_static;
-
-/// String deduplication registry for efficient binary logging.
-///
-/// This module provides functionality to deduplicate strings in the binary
-/// logging system, mapping them to compact numeric IDs that require much less
-/// storage space. Unlike the Logger itself, the string registry is thread-safe
-/// and can be safely accessed from multiple threads simultaneously.
-///
-/// # Thread Safety
-///
-/// While each thread should have its own Logger instance, all threads share the
-/// same string registry. The registry uses a mutex and atomic operations to ensure
-/// thread-safety.
 
 lazy_static! {
     /// A thread-safe global registry for string deduplication.
