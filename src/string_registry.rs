@@ -3,43 +3,73 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 
+/// String deduplication registry for efficient binary logging.
+///
+/// This module provides functionality to deduplicate strings in the binary
+/// logging system, mapping them to compact numeric IDs that require much less
+/// storage space. Unlike the Logger itself, the string registry is thread-safe
+/// and can be safely accessed from multiple threads simultaneously.
+///
+/// # Thread Safety
+///
+/// While each thread should have its own Logger instance, all threads share the
+/// same string registry. The registry uses a mutex and atomic operations to ensure
+/// thread-safety.
+
 lazy_static! {
     /// A thread-safe global registry for string deduplication.
     /// 
-    /// The string registry is a critical component for the binary logger's performance:
-    /// 1. Deduplicates strings - each unique string is stored only once
-    /// 2. Maps strings to small IDs - reduces storage space
-    /// 3. Thread-safe - can be used from multiple threads
-    /// 4. Zero-allocation lookups - uses atomic operations
-    /// 
-    /// # Implementation Details
-    /// - Uses a Mutex<HashMap> for thread-safe string storage
-    /// - Uses AtomicU16 for thread-safe ID generation
-    /// - ID 0 is reserved for dynamic strings
-    /// - IDs 1+ are used for registered static strings
-    /// 
-    /// # Performance Characteristics
-    /// - Registration: O(1) average case
-    /// - Lookup by ID: O(1) average case
-    /// - Thread contention: Only during new string registration
-    /// - Memory usage: O(n) where n is unique strings
+    /// Maps static string literals to unique 16-bit IDs for efficient storage.
+    /// The registry ensures each unique string is stored only once, regardless
+    /// of how many times it appears in logs.
     static ref STRING_REGISTRY: Mutex<HashMap<&'static str, u16>> = Mutex::new(HashMap::new());
     
-    /// Atomic counter for generating unique IDs
+    /// Atomic counter for generating unique string IDs.
+    /// 
+    /// Starts at 1 because ID 0 is reserved for special cases.
     static ref NEXT_ID: AtomicU16 = AtomicU16::new(1);
 }
 
-/// Register a string in the registry and return its unique ID.
-/// If the string is already registered, returns its existing ID.
+/// Registers a string in the registry and returns its unique ID.
+/// 
+/// This function is the core of the string deduplication system. When a format
+/// string is first used in logging, it's registered here to get a compact ID.
+/// Subsequent usages of the same string reuse this ID, saving space in the log.
+/// 
+/// # How It Works
+/// 
+/// 1. First, checks if the string is already registered (fast path)
+/// 2. If not, atomically generates a new ID and stores the mapping
+/// 3. Returns the ID (either existing or newly generated)
 /// 
 /// # Arguments
-/// * `s` - The string to register (must be a static string)
+/// 
+/// * `s` - A static string literal to register (must be `&'static str`)
 /// 
 /// # Returns
+/// 
 /// A unique 16-bit ID for the string
 /// 
 /// # Thread Safety
-/// This function is thread-safe and can be called concurrently.
+/// 
+/// This function is thread-safe and can be called concurrently from multiple
+/// threads without additional synchronization.
+/// 
+/// # Examples
+/// 
+/// ```
+/// # use binary_logger::string_registry::register_string;
+/// // First registration returns a new ID
+/// let id1 = register_string("Hello, world!");
+/// 
+/// // Registering the same string again returns the same ID
+/// let id2 = register_string("Hello, world!");
+/// assert_eq!(id1, id2);
+/// 
+/// // Different strings get different IDs
+/// let id3 = register_string("Different message");
+/// assert_ne!(id1, id3);
+/// ```
 #[allow(dead_code)]
 pub fn register_string(s: &'static str) -> u16 {
     // Fast path: check if string is already registered
@@ -54,16 +84,41 @@ pub fn register_string(s: &'static str) -> u16 {
     id
 }
 
-/// Look up a string by its ID.
+/// Looks up a string by its ID.
+/// 
+/// This function is used primarily by the log reader to retrieve the format
+/// string associated with an ID found in a log record.
 /// 
 /// # Arguments
-/// * `id` - The ID to look up
+/// 
+/// * `id` - The 16-bit string ID to look up
 /// 
 /// # Returns
-/// Some(&str) if the ID exists, None otherwise
+/// 
+/// * `Some(&'static str)` - The string associated with the ID
+/// * `None` - If no string with that ID exists, or if ID is 0 (reserved)
 /// 
 /// # Thread Safety
-/// This function is thread-safe and can be called concurrently.
+/// 
+/// This function is thread-safe and can be called concurrently from multiple
+/// threads without additional synchronization.
+/// 
+/// # Examples
+/// 
+/// ```
+/// # use binary_logger::string_registry::{register_string, get_string};
+/// // Register a string and get its ID
+/// let message = "Temperature alert";
+/// let id = register_string(message);
+/// 
+/// // Later, look up the string by ID
+/// let retrieved = get_string(id);
+/// assert_eq!(retrieved, Some(message));
+/// 
+/// // Looking up an unregistered ID returns None
+/// let not_found = get_string(65535);
+/// assert_eq!(not_found, None);
+/// ```
 pub fn get_string(id: u16) -> Option<&'static str> {
     if id == 0 {
         return None; // Reserved for dynamic strings
