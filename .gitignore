@@ -1,2 +1,7 @@
 /target
 println.log
+log.bin
+test.*.log
+test.log
+Traditional.log
+taditional*.log
