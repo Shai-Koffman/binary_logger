@@ -32,7 +32,7 @@ A zero-allocation, high-performance binary logging system written in Rust, optim
 ### 4. Flexible I/O Handling
 - **Pluggable Handlers**: Implements the BufferHandler trait for custom I/O strategies
 - **Separation of Concerns**: Logger focuses on memory operations, handler manages I/O
-- **Compression Support**: Easy integration with LZ4 or other compression algorithms
+- **Compression Efficient**: Testing shows LZ4 to be very efficient in compressing the log buffers (To be sent over network or saved to files)
 
 ## How It Works
 
